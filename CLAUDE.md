@@ -31,16 +31,20 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
+index.js                          SDK wiring only (registerHandlers + shutdown)
+src/app.js                        every SDK handler, waits for the first start
+src/hub.js                        reads the server on its own timer, states, triggers,
+                                  questions (ask), "Test the connection"
+src/flowise/client.js             Flowise REST client on fetch, errors with a `kind`
+src/devices.js                    the one device "Flowise" and its feature values
 src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
+src/widgets.js                    dashboard widget handler (manifest `widgets`)
+src/texts.js                      texts sent to Gladys, four languages, ActionFailure
 src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
 gladys-assistant-integration.json manifest: name, config_schema, actions, image...
-docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
-test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+docs/{en,fr,de,es}.md             user documentation, re-hosted by Gladys (en and fr mandatory)
+test/                             node --test, against the SDK's fake Gladys and a fake Flowise
+test/fixtures/flowise/            answers recorded from a real flowiseai/flowise 3.1.2
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
 
@@ -78,8 +82,9 @@ test/                             node --test, against the SDK's fake Gladys (in
   `type: "provider"`: 5.1.0). `test/manifest.test.js` ties the manifest to the
   code (defaults, action, scene and widget handlers): change both sides
   together.
-- **User-facing text** is bilingual (English and French): action messages,
-  manifest texts, and `docs/en.md` / `docs/fr.md`, kept in sync.
+- **User-facing text** exists in English, French, German and Spanish: action
+  messages, widget texts, feature names, manifest texts, and `docs/*.md`, kept
+  in sync (`test/i18n.test.js`).
 - **Style.** Prettier formats, ESLint catches mistakes. Comments explain why,
   in English. Tests never touch the network.
 
@@ -259,3 +264,23 @@ long, et sur un « Sie »/« Ihr… » de politesse en allemand. Le store exige 
 - Docs `en`, `fr`, `de`, `es` avec les mêmes sections.
 - Chauffe, ouverture, sécurité : ne rien rendre pilotable « comme un thermostat » ou par un assistant
   vocal quand une erreur serait dangereuse (leçon d'OctoPrint).
+
+## Flowise (propre à cette intégration)
+
+- Vérifié sur `flowiseai/flowise` 3.1.2 (20/11/2026). Publics : `GET /api/v1/ping` (texte `pong`),
+  `GET /api/v1/version` (`{"version":"3.1.2"}`), `POST /api/v1/prediction/{id}` d'un flux non protégé.
+  `GET /api/v1/chatflows` exige la clé (Bearer) : 401 `{"error":"Unauthorized Access"}` sinon ; il renvoie un
+  tableau qui contient tout le `flowData` (lourd : n'en garder que id, nom, type).
+- Erreurs de prédiction : flux inconnu 404, identifiant mal formé 400 « Invalid Chatflow ID », flux protégé
+  par une clé demandé sans elle ou avec une autre **500** « predictionsServices.buildChatflow - Unauthorized »
+  (traité comme clé refusée), flux en panne 500 avec la raison du nœud. Les messages d'erreur ne citent pas la
+  question.
+- `overrideConfig.sessionId` est accepté sans réglage du flux et renvoyé en `sessionId`/`chatId` ;
+  `overrideConfig.vars` et les autres surcharges exigent l'autorisation du flux (non utilisés).
+- L'image `latest` 3.1.2 plante au démarrage sur SQLite (`this.db.exec is not a function`, magasin de sessions
+  `connect-sqlite3`) : pour un test local, `EXPIRE_AUTH_TOKENS_ON_RESTART=true`. Premier compte :
+  `POST /api/v1/account/register`, puis `/api/v1/auth/login` et `POST /api/v1/apikey` (avec
+  `x-request-from: internal` et `permissions`). Flux sans modèle pour les tests : agentflow Start → Direct Reply.
+- La fonctionnalité « Flux » n'existe qu'avec une clé : l'ajout de la clé change la structure (« Mettre à
+  jour » proposé). La dernière réponse est gardée en `text/text` (500 caractères au plus, une ligne).
+- Langflow non pris en charge (API, clés et réponses différentes) : le dire dans la doc.

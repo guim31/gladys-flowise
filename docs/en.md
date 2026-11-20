@@ -1,61 +1,111 @@
-# Demo Devices Template
+# Flowise
 
-This is the user documentation of the integration. Gladys re-hosts this file
-and shows a permanent **Documentation** link to it in the Configuration screen
-(in the user's language, with English as the fallback) — it is when
-configuring that the user needs it most. Keep the short onboarding hints in
-the `section` blocks of the manifest `config_schema`; put the long
-step-by-step (screenshots, troubleshooting…) here.
+[Flowise](https://flowiseai.com) builds AI chatflows and agents by wiring blocks together: a
+model (OpenAI, Mistral, Ollama…), a memory, documents, tools. This integration lets your Gladys
+scenes send a question to one of these flows, with information from the scene in the question,
+and use its answer in the next actions: send it as a message, read it aloud, test it in a
+condition.
 
-## What you get
+It also follows the server (online or not, number of flows), keeps the last answer on a device,
+and offers a dashboard widget and two scene triggers.
 
-Six demo devices show up after installation: a weather station (real data
-from Open-Meteo), a switch, a dimmable light, a smart plug with power
-metering, a motion sensor and a camera.
+## Requirements
 
-## Configuration
+- Gladys 5.1 or later.
+- A Flowise server on your network (port 3000 by default), with at least one chatflow or
+  agentflow.
+- A Flowise API key, optional but advised: create it in Flowise, **API Keys** menu. It lists
+  your flows (a scene can then name a flow by its name) and opens the flows protected by a key.
 
-1. Open the **Configuration** tab of the integration.
-2. Set the **latitude** and **longitude** the demo weather station should
-   observe (they default to Paris), and pick your temperature unit.
-   The **refresh interval** sets how often the weather station and the
-   plug's power are read: every 5 minutes by default, every minute at most.
-3. Save: the devices appear in the **Discovery** tab, ready to be added.
+## Setup
 
-The **Prefer the local connection** toggle drives the demo plug: it reports
-the channel it actually uses as a badge (local or cloud), with an orange dot
-when it runs degraded (local refused, cloud fallback).
+1. In Gladys, open **Integrations**, search for **Flowise** and install it.
+2. In **Configuration**, fill in:
+   - **Address**: the IP address or name of the server, e.g. `192.168.1.20` (port 3000 is
+     added), `192.168.1.20:8080`, or the full URL of a reverse proxy; an address copied from the
+     browser works too;
+   - **API key (optional)**: the key created in Flowise;
+   - **Default flow**: the flow used when a scene action names none;
+   - **Longest wait for an answer**: 30 to 110 seconds (60 by default);
+   - **Refresh interval**: how often the state of the server is read (one minute by default);
+   - **Language of the feature names**: the names given to the features and the texts of the
+     scene events and errors.
+3. Save, then press **Test the connection**: it shows the Flowise version and, with a key, the
+   list of your flows.
+4. In the **Discover** tab, add the **Flowise** device to Gladys.
 
-## Actions
+A flow is given by its id (the string of digits and letters at the end of the address of the
+flow in Flowise, e.g. `b4aa0269-51dd-45e4-8121-569626ad0539`), by the full address copied from
+the browser, or by its name when an API key is set.
 
-- **Test the weather provider** — performs a live request to Open-Meteo and
-  shows the current temperature and humidity under the button.
-- **Identify a device** — pick one of your devices in the list and it will
-  signal itself (the demo light "blinks" in the logs).
+## The Flowise device
 
-## Scenes
+| Feature       | Meaning                                                         |
+| ------------- | --------------------------------------------------------------- |
+| `Online`      | 1 when the server answers, 0 after two failed readings in a row |
+| `Flows`       | number of chatflows and agentflows (with an API key only)       |
+| `Last answer` | beginning of the last answer a scene received (500 characters)  |
 
-The integration adds its own cards to the scene editor (Gladys 5.1 or
-later), under the **Integrations** category:
-
-- **Motion detected** (trigger) — starts the scene when a demo motion sensor
-  sees something move. Optionally pick the sensor and what moved (person,
-  animal); left empty, any detection matches. The following actions can
-  read what moved with `{{triggerEvent.data.target}}`.
-- **Identify a device** (action) — makes the chosen device signal itself.
-  It returns whether the device could signal itself, so the following
-  actions can depend on it.
+Adding the API key later offers **Update** in the Discover tab, to add the `Flows` feature.
 
 ## Dashboard
 
-Add the **Demo status** widget to a dashboard: it shows the live
-temperature of the weather station and the power of the office plug, the
-connection the plug currently uses (orange when degraded) and the observed
-location. Its **Identify the light** button makes the demo light signal
-itself.
+The **Flowise** widget shows the server (online, version), the number of flows (with a key),
+the flow and time of the last answer, and the beginning of that answer. The **Show the last answer** setting hides the text of the answer.
+
+## Scenes
+
+### Triggers
+
+- **Flowise is offline**: the server stops answering (two failed readings in a row, 15 seconds
+  apart). Variable: the reason.
+- **Flowise is back online**: the server answers again. Variable: the length of the outage, in
+  minutes.
+
+### Actions
+
+- **Ask Flowise**: sends a question to a flow.
+  - **Question**: type `{{` to insert scene information, e.g. the temperature of a sensor or a
+    value of the trigger;
+  - **Flow**: empty for the default flow; else its id, its address or its name;
+  - **Conversation**: the same name from one run to the next (e.g. `kitchen`) keeps the memory
+    of the flow, if the flow has a memory; empty, every run is a new conversation;
+  - **Longest answer**: in characters (1000 by default, 10 000 at most). A longer answer is cut
+    at the end of a sentence (or a word), marked by `…`.
+
+  Its results are available to the next actions: **Answer**, **Flow used**, **Conversation
+  id**, **Answer time** (seconds) and **Answer cut** (yes/no). In a **Send a message** action,
+  type `{{` and pick **Answer**. A failure (server unreachable, flow not found, key refused, flow
+  in error) shows in red with its reason.
+
+### Scene ideas
+
+- **Morning briefing**: at 7 am, **Ask Flowise** "Sum up the day: outdoor temperature `{{…}}`,
+  calendar `{{…}}`." to an agent that knows your habits, then send the **Answer** to your
+  phone.
+- **Kitchen assistant**: with the conversation `kitchen`, every question keeps the thread of
+  the previous ones.
+- **Watch the server**: on **Flowise is offline**, send yourself a message with the reason.
 
 ## Troubleshooting
 
-The integration logs everything it does: check the integration logs from the
-Gladys UI (or `docker logs` on the host) with `LOG_LEVEL=debug` for the full
-detail.
+- **"Flowise does not answer"**: check the address and the port (3000), and that the server is
+  started. With Docker, the port must be published.
+- **"flow not found"**: copy the id from the Flowise address bar, or use **Test the
+  connection** to see the exact names.
+- **"access refused"**: the API key is wrong, or the flow is protected by another key.
+- **"the flow failed in Flowise"**: a block of the flow failed (model unreachable, missing
+  credentials…); open the flow and its **Executions** in Flowise.
+- **"Flowise took too long to answer"**: raise the longest wait, or simplify the flow.
+- Problems and ideas: [GitHub issues](https://github.com/guim31/gladys-flowise/issues).
+
+## Limits
+
+- Text only: no image nor file in the question, no streamed answer.
+- Gladys waits two minutes at most for an action. The answer is capped at 10 000 characters.
+- Flowise variables (`$vars`) are not sent: put the scene information in the question.
+- Langflow is not supported: its API and its ids are different.
+- Questions and answers never go to the logs of the integration.
+- Tested against a real Flowise 3.1.2 (an agentflow without model), without a real Gladys
+  instance: feedback welcome.
+- Not affiliated with FlowiseAI.

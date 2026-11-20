@@ -1,33 +1,64 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeConfig, DEFAULT_CONFIG } from '../src/config.js';
+import { normalizeConfig, parseFlowId, parseServerUrl } from '../src/config.js';
 
-test('normalizeConfig returns the defaults when called with no argument', () => {
-  assert.deepEqual(normalizeConfig(), DEFAULT_CONFIG);
+const ID = 'b4aa0269-51dd-45e4-8121-569626ad0539';
+
+test('parseServerUrl: bare host gets port 3000, a page of the interface is dropped', () => {
+  assert.equal(parseServerUrl('192.0.2.20'), 'http://192.0.2.20:3000');
+  assert.equal(parseServerUrl(' flowise.lan:8080 '), 'http://flowise.lan:8080');
+  assert.equal(parseServerUrl('flowise.lan:80'), 'http://flowise.lan');
+  assert.equal(parseServerUrl('http://192.0.2.20:3000/'), 'http://192.0.2.20:3000');
+  assert.equal(parseServerUrl('http://192.0.2.20:3000/chatflows'), 'http://192.0.2.20:3000');
+  assert.equal(
+    parseServerUrl(`http://192.0.2.20:3000/v2/agentcanvas/${ID}`),
+    'http://192.0.2.20:3000',
+  );
+  assert.equal(
+    parseServerUrl(`https://ai.example.org/flowise/api/v1/prediction/${ID}`),
+    'https://ai.example.org/flowise',
+  );
+  assert.equal(parseServerUrl('https://ai.example.org'), 'https://ai.example.org');
+  assert.equal(parseServerUrl('http://user:pass@192.0.2.20'), null);
+  assert.equal(parseServerUrl('ftp://192.0.2.20'), null);
+  assert.equal(parseServerUrl(''), null);
+  assert.equal(parseServerUrl(undefined), null);
 });
 
-test('normalizeConfig keeps user values over the defaults', () => {
-  const config = normalizeConfig({ latitude: 45.5, longitude: -73.6, unit: 'fahrenheit' });
-  assert.equal(config.latitude, 45.5);
-  assert.equal(config.longitude, -73.6);
-  assert.equal(config.unit, 'fahrenheit');
+test('parseFlowId: an id, or the address of a canvas, a chat or the API', () => {
+  assert.equal(parseFlowId(ID), ID);
+  assert.equal(parseFlowId(` ${ID.toUpperCase()} `), ID);
+  assert.equal(parseFlowId(`http://192.0.2.20:3000/canvas/${ID}`), ID);
+  assert.equal(parseFlowId(`http://192.0.2.20:3000/v2/agentcanvas/${ID}?x=1`), ID);
+  assert.equal(parseFlowId(`http://192.0.2.20:3000/chatbot/${ID}`), ID);
+  assert.equal(parseFlowId(`http://192.0.2.20:3000/api/v1/prediction/${ID}`), ID);
+  assert.equal(parseFlowId('Home assistant'), null);
+  assert.equal(parseFlowId(undefined), null);
 });
 
-test('normalizeConfig coerces numeric strings coming from a form', () => {
-  const config = normalizeConfig({ latitude: '48.8', longitude: '2.3', poll_frequency: '600' });
-  assert.equal(config.latitude, 48.8);
-  assert.equal(config.longitude, 2.3);
-  assert.equal(config.poll_frequency, 600);
-  assert.equal(typeof config.poll_frequency, 'number');
-});
-
-test('normalizeConfig falls back to the default for a missing numeric field', () => {
-  const config = normalizeConfig({ unit: 'celsius' });
-  assert.equal(config.poll_frequency, DEFAULT_CONFIG.poll_frequency);
-});
-
-test('GLADYS_PREFER_LOCAL defaults to true and only an explicit false disables it', () => {
-  assert.equal(normalizeConfig().GLADYS_PREFER_LOCAL, true);
-  assert.equal(normalizeConfig({ GLADYS_PREFER_LOCAL: true }).GLADYS_PREFER_LOCAL, true);
-  assert.equal(normalizeConfig({ GLADYS_PREFER_LOCAL: false }).GLADYS_PREFER_LOCAL, false);
+test('normalizeConfig: defaults and choices', () => {
+  assert.deepEqual(normalizeConfig({}), {
+    url: null,
+    urlTyped: false,
+    apiKey: '',
+    defaultFlow: '',
+    timeoutMs: 60_000,
+    pollIntervalMs: 60_000,
+    language: 'fr',
+  });
+  const config = normalizeConfig({
+    url: 'not a url at all',
+    api_key: ' key ',
+    default_flow: ' Echo ',
+    timeout: '110',
+    poll_interval: '7',
+    language: 'it',
+  });
+  assert.equal(config.url, null);
+  assert.equal(config.urlTyped, true);
+  assert.equal(config.apiKey, 'key');
+  assert.equal(config.defaultFlow, 'Echo');
+  assert.equal(config.timeoutMs, 110_000);
+  assert.equal(config.pollIntervalMs, 60_000);
+  assert.equal(config.language, 'fr');
 });
