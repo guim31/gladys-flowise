@@ -1,0 +1,36 @@
+{
+  "text": "Echo: Bonjour",
+  "question": "Bonjour",
+  "chatId": "cuisine",
+  "chatMessageId": "ed3b99a8-938b-43d6-aade-f1840172f9e5",
+  "executionId": "8533d6f3-25eb-476f-9b25-77f721693494",
+  "agentFlowExecutedData": [
+    {
+      "nodeId": "startAgentflow_0",
+      "nodeLabel": "Start",
+      "data": {
+        "id": "startAgentflow_0",
+        "name": "startAgentflow",
+        "input": { "question": "Bonjour" },
+        "output": { "question": "Bonjour" },
+        "state": {}
+      },
+      "previousNodeIds": [],
+      "status": "FINISHED"
+    },
+    {
+      "nodeId": "directReplyAgentflow_0",
+      "nodeLabel": "Direct Reply",
+      "data": {
+        "id": "directReplyAgentflow_0",
+        "name": "directReplyAgentflow",
+        "input": {},
+        "output": { "content": "Echo: Bonjour" },
+        "state": {}
+      },
+      "previousNodeIds": ["startAgentflow_0"],
+      "status": "FINISHED"
+    }
+  ],
+  "sessionId": "cuisine"
+}

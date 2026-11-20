@@ -1,0 +1,6 @@
+{
+  "statusCode": 500,
+  "success": false,
+  "message": "Error: predictionsServices.buildChatflow - Start input type not found",
+  "stack": {}
+}

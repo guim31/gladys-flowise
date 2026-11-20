@@ -30,6 +30,13 @@ Gladys before reporting a problem.
 
 In scope: the code of this repository and the Docker image it publishes.
 
+The integration stores nothing under `/data`. The address of the Flowise
+server and the optional Flowise API key live in the configuration of the
+integration, in Gladys; the key is sent only to that server, as a Bearer
+token, and never written to the logs, nor are the questions and the answers.
+The integration only talks to the Flowise server, on your network or behind
+your reverse proxy: use HTTPS when it is reached over the internet.
+
 Out of scope: Gladys Assistant itself (see its
 [security policy](https://github.com/GladysAssistant/Gladys/security/policy)),
-and the third-party services and devices the integration talks to.
+Flowise and the services its flows call.

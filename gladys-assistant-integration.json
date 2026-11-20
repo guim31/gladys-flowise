@@ -1,177 +1,528 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "Flowise",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Ask your Flowise chatflows and agents from a scene, and follow the state of the server.",
+    "fr": "Interrogez vos chatflows et agents Flowise depuis une scène et suivez l'état du serveur.",
+    "de": "Frag deine Flowise-Chatflows und Agenten aus einer Szene und behalte den Server im Blick.",
+    "es": "Pregunte a sus chatflows y agentes de Flowise desde una escena y siga el estado del servidor."
   },
   "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "docker_image": "ghcr.io/guim31/gladys-flowise:1.0.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "cover_image": "https://raw.githubusercontent.com/guim31/gladys-flowise/main/cover.png",
+  "categories": ["assistants", "services"],
+  "transports": ["local"],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Your Flowise server",
+        "fr": "Votre serveur Flowise",
+        "de": "Dein Flowise-Server",
+        "es": "Su servidor Flowise"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "Flowise listens on port 3000. Create an API key in Flowise (API Keys menu) to list your flows and use the ones protected by a key.",
+        "fr": "Flowise écoute sur le port 3000. Créez une clé d'API dans Flowise (menu API Keys) pour lister vos flux et utiliser ceux protégés par une clé.",
+        "de": "Flowise lauscht auf Port 3000. Erstelle einen API-Schlüssel in Flowise (Menü API Keys), um deine Flows aufzulisten und die mit einem Schlüssel geschützten zu nutzen.",
+        "es": "Flowise escucha en el puerto 3000. Cree una clave de API en Flowise (menú API Keys) para listar sus flujos y usar los protegidos por una clave."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://docs.flowiseai.com/configuration/authorization/chatflow-level",
+          "label": {
+            "en": "Flowise API keys",
+            "fr": "Clés d'API de Flowise",
+            "de": "API-Schlüssel von Flowise",
+            "es": "Claves de API de Flowise"
+          }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+      "key": "url",
+      "type": "string",
+      "label": {
+        "en": "Address",
+        "fr": "Adresse",
+        "de": "Adresse",
+        "es": "Dirección"
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
+      "description": {
+        "en": "IP address or name of the server (port 3000 by default), or the full URL of a reverse proxy.",
+        "fr": "Adresse IP ou nom du serveur (port 3000 par défaut), ou l'URL complète d'un proxy inverse.",
+        "de": "IP-Adresse oder Name des Servers (standardmäßig Port 3000) oder die vollständige URL eines Reverse-Proxys.",
+        "es": "Dirección IP o nombre del servidor (puerto 3000 por defecto), o la URL completa de un proxy inverso."
+      },
+      "placeholder": {
+        "en": "e.g. 192.168.1.20",
+        "fr": "ex. 192.168.1.20",
+        "de": "z. B. 192.168.1.20",
+        "es": "p. ej. 192.168.1.20"
+      },
       "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
+      "default": ""
     },
     {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
-      "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
+      "key": "api_key",
+      "type": "secret",
+      "label": {
+        "en": "API key (optional)",
+        "fr": "Clé d'API (facultative)",
+        "de": "API-Schlüssel (optional)",
+        "es": "Clave de API (opcional)"
       },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
+      "description": {
+        "en": "Lists the flows (so a scene can name a flow) and opens the flows protected by a key.",
+        "fr": "Liste les flux (une scène peut alors nommer un flux) et ouvre les flux protégés par une clé.",
+        "de": "Listet die Flows auf (eine Szene kann dann einen Flow beim Namen nennen) und öffnet die mit einem Schlüssel geschützten Flows.",
+        "es": "Lista los flujos (una escena puede entonces nombrar un flujo) y abre los flujos protegidos por una clave."
+      },
+      "required": false
     },
     {
-      "key": "unit",
-      "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
+      "key": "default_flow",
+      "type": "string",
+      "label": {
+        "en": "Default flow",
+        "fr": "Flux par défaut",
+        "de": "Standard-Flow",
+        "es": "Flujo predeterminado"
+      },
+      "description": {
+        "en": "Used when a scene action names no flow: its id (in the Flowise address bar), its address, or its name with an API key.",
+        "fr": "Utilisé quand une action de scène ne nomme aucun flux : son identifiant (dans la barre d'adresse de Flowise), son adresse, ou son nom avec une clé d'API.",
+        "de": "Wird verwendet, wenn eine Szenen-Aktion keinen Flow nennt: seine ID (in der Adresszeile von Flowise), seine Adresse oder sein Name mit API-Schlüssel.",
+        "es": "Se usa cuando una acción de escena no indica ningún flujo: su identificador (en la barra de direcciones de Flowise), su dirección o su nombre con una clave de API."
+      },
+      "placeholder": {
+        "en": "e.g. Home assistant",
+        "fr": "ex. Assistant maison",
+        "de": "z. B. Hausassistent",
+        "es": "p. ej. Asistente del hogar"
+      },
       "required": false,
-      "default": "celsius",
+      "default": ""
+    },
+    {
+      "key": "timeout",
+      "type": "select",
+      "label": {
+        "en": "Longest wait for an answer",
+        "fr": "Attente maximale d'une réponse",
+        "de": "Längste Wartezeit auf eine Antwort",
+        "es": "Espera máxima de una respuesta"
+      },
+      "description": {
+        "en": "A flow that calls a large model or several tools can take a minute or more.",
+        "fr": "Un flux qui appelle un gros modèle ou plusieurs outils peut mettre une minute ou plus.",
+        "de": "Ein Flow, der ein großes Modell oder mehrere Tools aufruft, kann eine Minute oder länger brauchen.",
+        "es": "Un flujo que llama a un modelo grande o a varias herramientas puede tardar un minuto o más."
+      },
+      "required": false,
+      "default": "60",
       "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
+        {
+          "value": "30",
+          "label": {
+            "en": "30 seconds",
+            "fr": "30 secondes",
+            "de": "30 Sekunden",
+            "es": "30 segundos"
+          }
+        },
+        {
+          "value": "60",
+          "label": {
+            "en": "60 seconds",
+            "fr": "60 secondes",
+            "de": "60 Sekunden",
+            "es": "60 segundos"
+          }
+        },
+        {
+          "value": "90",
+          "label": {
+            "en": "90 seconds",
+            "fr": "90 secondes",
+            "de": "90 Sekunden",
+            "es": "90 segundos"
+          }
+        },
+        {
+          "value": "110",
+          "label": {
+            "en": "110 seconds",
+            "fr": "110 secondes",
+            "de": "110 Sekunden",
+            "es": "110 segundos"
+          }
+        }
       ]
     },
     {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "key": "poll_interval",
+      "type": "select",
+      "label": {
+        "en": "Refresh interval",
+        "fr": "Intervalle de rafraîchissement",
+        "de": "Aktualisierungsintervall",
+        "es": "Intervalo de actualización"
+      },
       "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+        "en": "How often the state of the server is read.",
+        "fr": "Fréquence de lecture de l'état du serveur.",
+        "de": "Wie oft der Zustand des Servers gelesen wird.",
+        "es": "Con qué frecuencia se lee el estado del servidor."
       },
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": "60",
+      "options": [
+        {
+          "value": "30",
+          "label": {
+            "en": "30 seconds",
+            "fr": "30 secondes",
+            "de": "30 Sekunden",
+            "es": "30 segundos"
+          }
+        },
+        {
+          "value": "60",
+          "label": {
+            "en": "1 minute",
+            "fr": "1 minute",
+            "de": "1 Minute",
+            "es": "1 minuto"
+          }
+        },
+        {
+          "value": "120",
+          "label": {
+            "en": "2 minutes",
+            "fr": "2 minutes",
+            "de": "2 Minuten",
+            "es": "2 minutos"
+          }
+        },
+        {
+          "value": "300",
+          "label": {
+            "en": "5 minutes",
+            "fr": "5 minutes",
+            "de": "5 Minuten",
+            "es": "5 minutos"
+          }
+        }
+      ]
+    },
+    {
+      "key": "language",
+      "type": "select",
+      "label": {
+        "en": "Language of the feature names",
+        "fr": "Langue des noms de fonctionnalités",
+        "de": "Sprache der Funktionsnamen",
+        "es": "Idioma de los nombres de funciones"
+      },
+      "description": {
+        "en": "Names given to the features when the device is added, and texts of the scene events and errors.",
+        "fr": "Noms donnés aux fonctionnalités à l'ajout de l'appareil, et textes des événements de scène et des erreurs.",
+        "de": "Namen der Funktionen beim Hinzufügen des Geräts und Texte der Szenen-Ereignisse und Fehler.",
+        "es": "Nombres de las funciones al añadir el dispositivo y textos de los eventos de escena y de los errores."
+      },
+      "required": false,
+      "default": "fr",
+      "options": [
+        {
+          "value": "en",
+          "label": {
+            "en": "English",
+            "fr": "Anglais",
+            "de": "Englisch",
+            "es": "Inglés"
+          }
+        },
+        {
+          "value": "fr",
+          "label": {
+            "en": "French",
+            "fr": "Français",
+            "de": "Französisch",
+            "es": "Francés"
+          }
+        },
+        {
+          "value": "de",
+          "label": {
+            "en": "German",
+            "fr": "Allemand",
+            "de": "Deutsch",
+            "es": "Alemán"
+          }
+        },
+        {
+          "value": "es",
+          "label": {
+            "en": "Spanish",
+            "fr": "Espagnol",
+            "de": "Spanisch",
+            "es": "Español"
+          }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
+      "key": "test_connection",
+      "label": {
+        "en": "Test the connection",
+        "fr": "Tester la connexion",
+        "de": "Verbindung testen",
+        "es": "Probar la conexión"
+      },
       "timeout_seconds": 30
-    },
-    {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ]
     }
   ],
   "scene_triggers": [
     {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
-      "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
+      "key": "server_offline",
+      "label": {
+        "en": "Flowise is offline",
+        "fr": "Flowise est hors ligne",
+        "de": "Flowise ist offline",
+        "es": "Flowise está fuera de línea"
       },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
-        },
-        {
-          "key": "target",
-          "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
-          "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
-          ]
-        }
-      ],
+      "description": {
+        "en": "The server stops answering (two failed readings in a row): the questions of your scenes will fail.",
+        "fr": "Le serveur ne répond plus (deux lectures en échec de suite) : les questions de vos scènes échoueront.",
+        "de": "Der Server antwortet nicht mehr (zwei fehlgeschlagene Abfragen in Folge): Die Fragen deiner Szenen schlagen fehl.",
+        "es": "El servidor deja de responder (dos lecturas fallidas seguidas): las preguntas de sus escenas fallarán."
+      },
       "variables": [
         {
-          "key": "target",
+          "key": "error",
           "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
+          "label": {
+            "en": "Reason",
+            "fr": "Raison",
+            "de": "Grund",
+            "es": "Motivo"
+          }
+        }
+      ]
+    },
+    {
+      "key": "server_back",
+      "label": {
+        "en": "Flowise is back online",
+        "fr": "Flowise est de retour",
+        "de": "Flowise ist wieder online",
+        "es": "Flowise vuelve a estar en línea"
+      },
+      "description": {
+        "en": "The server answers again after being offline, with the length of the outage.",
+        "fr": "Le serveur répond de nouveau après avoir été hors ligne, avec la durée de la panne.",
+        "de": "Der Server antwortet wieder, nachdem er offline war, mit der Dauer des Ausfalls.",
+        "es": "El servidor responde de nuevo tras estar fuera de línea, con la duración de la caída."
+      },
+      "variables": [
+        {
+          "key": "downtime_minutes",
+          "type": "number",
+          "label": {
+            "en": "Outage length (minutes)",
+            "fr": "Durée de la panne (minutes)",
+            "de": "Dauer des Ausfalls (Minuten)",
+            "es": "Duración de la caída (minutos)"
+          }
         }
       ]
     }
   ],
   "scene_actions": [
     {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
+      "key": "ask",
+      "label": {
+        "en": "Ask Flowise",
+        "fr": "Demander à Flowise",
+        "de": "Flowise fragen",
+        "es": "Preguntar a Flowise"
       },
-      "timeout_seconds": 15,
+      "description": {
+        "en": "Sends a question to a Flowise flow and hands its answer to the next actions (message, speech, condition).",
+        "fr": "Envoie une question à un flux Flowise et passe sa réponse aux actions suivantes (message, voix, condition).",
+        "de": "Schickt eine Frage an einen Flowise-Flow und gibt seine Antwort an die nächsten Aktionen weiter (Nachricht, Sprache, Bedingung).",
+        "es": "Envía una pregunta a un flujo de Flowise y pasa su respuesta a las acciones siguientes (mensaje, voz, condición)."
+      },
+      "timeout_seconds": 120,
       "fields": [
         {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
+          "key": "question",
+          "type": "string",
+          "label": {
+            "en": "Question",
+            "fr": "Question",
+            "de": "Frage",
+            "es": "Pregunta"
+          },
+          "description": {
+            "en": "Type '{{' to insert scene information: a temperature, a trigger value…",
+            "fr": "Tapez « {{ » pour insérer des informations de la scène : une température, une valeur du déclencheur…",
+            "de": "Tippe „{{“, um Informationen der Szene einzufügen: eine Temperatur, einen Wert des Auslösers…",
+            "es": "Escriba «{{» para insertar información de la escena: una temperatura, un valor del desencadenante…"
+          },
           "required": true
+        },
+        {
+          "key": "flow",
+          "type": "string",
+          "label": {
+            "en": "Flow (empty: the default one)",
+            "fr": "Flux (vide : celui par défaut)",
+            "de": "Flow (leer: der Standard-Flow)",
+            "es": "Flujo (vacío: el predeterminado)"
+          },
+          "description": {
+            "en": "Id of the chatflow or agentflow (in the Flowise address bar), or its name with an API key.",
+            "fr": "Identifiant du chatflow ou de l'agentflow (dans la barre d'adresse de Flowise), ou son nom avec une clé d'API.",
+            "de": "ID des Chatflows oder Agentflows (in der Adresszeile von Flowise) oder sein Name mit API-Schlüssel.",
+            "es": "Identificador del chatflow o agentflow (en la barra de direcciones de Flowise), o su nombre con una clave de API."
+          },
+          "placeholder": {
+            "en": "e.g. Home assistant",
+            "fr": "ex. Assistant maison",
+            "de": "z. B. Hausassistent",
+            "es": "p. ej. Asistente del hogar"
+          },
+          "required": false
+        },
+        {
+          "key": "conversation",
+          "type": "string",
+          "label": {
+            "en": "Conversation (optional)",
+            "fr": "Conversation (facultative)",
+            "de": "Unterhaltung (optional)",
+            "es": "Conversación (opcional)"
+          },
+          "description": {
+            "en": "The same name from one run to the next keeps the memory of the flow (e.g. kitchen). Empty: a new conversation each time.",
+            "fr": "Le même nom d'une exécution à l'autre garde la mémoire du flux (ex. cuisine). Vide : une nouvelle conversation à chaque fois.",
+            "de": "Derselbe Name von einer Ausführung zur nächsten behält das Gedächtnis des Flows (z. B. küche). Leer: jedes Mal eine neue Unterhaltung.",
+            "es": "El mismo nombre de una ejecución a otra conserva la memoria del flujo (p. ej. cocina). Vacío: una conversación nueva cada vez."
+          },
+          "required": false
+        },
+        {
+          "key": "max_characters",
+          "type": "number",
+          "label": {
+            "en": "Longest answer (characters)",
+            "fr": "Réponse la plus longue (caractères)",
+            "de": "Längste Antwort (Zeichen)",
+            "es": "Respuesta más larga (caracteres)"
+          },
+          "description": {
+            "en": "A longer answer is cut cleanly. A text message holds about 1000 characters well.",
+            "fr": "Une réponse plus longue est coupée proprement. Un message tient bien 1000 caractères environ.",
+            "de": "Eine längere Antwort wird sauber gekürzt. Eine Nachricht fasst gut etwa 1000 Zeichen.",
+            "es": "Una respuesta más larga se corta limpiamente. Un mensaje admite bien unos 1000 caracteres."
+          },
+          "required": false,
+          "default": 1000,
+          "min": 50,
+          "max": 10000
         }
       ],
       "outputs": [
         {
-          "key": "signalled",
+          "key": "response",
+          "type": "string",
+          "label": {
+            "en": "Answer",
+            "fr": "Réponse",
+            "de": "Antwort",
+            "es": "Respuesta"
+          }
+        },
+        {
+          "key": "flow",
+          "type": "string",
+          "label": {
+            "en": "Flow used",
+            "fr": "Flux utilisé",
+            "de": "Verwendeter Flow",
+            "es": "Flujo usado"
+          }
+        },
+        {
+          "key": "session_id",
+          "type": "string",
+          "label": {
+            "en": "Conversation id",
+            "fr": "Identifiant de conversation",
+            "de": "Unterhaltungs-ID",
+            "es": "Identificador de conversación"
+          }
+        },
+        {
+          "key": "duration_seconds",
+          "type": "number",
+          "label": {
+            "en": "Answer time (seconds)",
+            "fr": "Temps de réponse (secondes)",
+            "de": "Antwortzeit (Sekunden)",
+            "es": "Tiempo de respuesta (segundos)"
+          }
+        },
+        {
+          "key": "truncated",
           "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
+          "label": {
+            "en": "Answer cut",
+            "fr": "Réponse coupée",
+            "de": "Antwort gekürzt",
+            "es": "Respuesta cortada"
+          }
         }
       ]
     }
   ],
   "widgets": [
     {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
+      "key": "flowise",
+      "label": {
+        "en": "Flowise",
+        "fr": "Flowise",
+        "de": "Flowise",
+        "es": "Flowise"
       },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "description": {
+        "en": "State of the server, number of flows and the last answer a scene received.",
+        "fr": "État du serveur, nombre de flux et dernière réponse reçue par une scène.",
+        "de": "Serverstatus, Anzahl der Flows und die letzte Antwort, die eine Szene erhalten hat.",
+        "es": "Estado del servidor, número de flujos y la última respuesta recibida por una escena."
+      },
+      "icon": "git-merge",
+      "settings": [
+        {
+          "key": "show_answer",
+          "type": "boolean",
+          "label": {
+            "en": "Show the last answer",
+            "fr": "Afficher la dernière réponse",
+            "de": "Letzte Antwort anzeigen",
+            "es": "Mostrar la última respuesta"
+          },
+          "required": false,
+          "default": true
+        }
+      ]
     }
   ]
 }
