@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// Entry point: wires the Gladys SDK to the Ollama hub (src/app.js). No server
+// Entry point: wires the Gladys SDK to the Flowise hub (src/app.js). No server
 // logic here. Handlers are registered before connect().
 //
 // Environment provided by the Gladys supervisor: GLADYS_HOST_API_URL,
@@ -17,7 +17,7 @@ gladys.handleShutdown((signal) => {
   return app.stop();
 });
 
-logger.info('Starting the Ollama integration...');
+logger.info('Starting the Flowise integration...');
 gladys.connect().catch((err) => {
   logger.error('Initial connection failed', err);
   process.exit(1);

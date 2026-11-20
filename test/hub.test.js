@@ -98,7 +98,7 @@ test('offline after two failed readings, back with the outage length', async (t)
   await w.hub.refresh();
   assert.equal(w.fake.sceneEvents.length, 0, 'one failure is a blip');
   assert.equal(w.fake.lastState(online), 1);
-  assert.equal(w.fake.connectionStatus.connected, false);
+  assert.equal(w.fake.connectionStatus.connected, true);
 
   w.clock.advance(15_000);
   await w.hub.refresh();
@@ -123,15 +123,77 @@ test('offline after two failed readings, back with the outage length', async (t)
   assert.equal(w.fake.connectionStatus.connected, true);
 });
 
-test('a refused key is a status, not an outage', async (t) => {
+test('a refused key is a status, not an outage: the server stays online', async (t) => {
   const w = await world(t, { config: { url: '192.0.2.20', api_key: 'wrong', language: 'en' } });
   assert.equal(w.fake.connectionStatus.connected, false);
   assert.match(JSON.stringify(w.fake.connectionStatus), /API key/);
+  assert.equal(w.fake.lastState(featureId(w.gladys, FEATURE_KEYS.ONLINE)), 1);
   w.clock.advance(60_000);
   await w.hub.refresh();
   assert.equal(w.fake.sceneEvents.length, 0);
+  // An open flow still answers by its id; a name needs the list.
+  const ok = await w.fake.sceneAction('ask', { question: 'Bonjour', flow: ECHO_ID });
+  assert.equal(ok.success, true);
+  const byName = await w.fake.sceneAction('ask', { question: 'Bonjour', flow: 'Echo' });
+  assert.equal(byName.success, false);
+  assert.match(byName.error.en, /check the API key/);
+  const report = await w.fake.action('test_connection', {});
+  assert.equal(report.success, false);
   await w.fake.configUpdated({ url: '192.0.2.20', api_key: KEY, language: 'en' });
   assert.equal(w.fake.connectionStatus.connected, true);
+});
+
+test('a single silent reading does not turn the status red', async (t) => {
+  const w = await world(t);
+  w.server.online = false;
+  await w.hub.refresh();
+  assert.equal(w.fake.connectionStatus.connected, true, 'a blip');
+  w.server.online = true;
+  await w.hub.refresh();
+  assert.equal(w.fake.connectionStatus.connected, true);
+});
+
+test('the outage length counts from the first silence, a refused request in between', async (t) => {
+  const w = await world(t);
+  w.server.online = false;
+  await w.hub.refresh();
+  w.clock.advance(15_000);
+  await w.hub.refresh();
+  assert.equal(w.hub.state.down, true);
+  // A proxy answering an error page while Flowise restarts, then silence again.
+  w.clock.advance(60_000);
+  await w.hub.applyFailure(Object.assign(new Error('HTTP 500'), { kind: 'http' }));
+  w.clock.advance(60_000);
+  await w.hub.refresh();
+  w.server.online = true;
+  w.clock.advance(60_000);
+  await w.hub.refresh();
+  const back = w.fake.sceneEvents.at(-1);
+  assert.equal(back.key ?? back.event_key, TRIGGERS.BACK);
+  assert.match(JSON.stringify(back), /"downtime_minutes":3/);
+});
+
+test('a refused publication at start does not stop the readings', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const w = await createWorld({ connect: false, timers: true });
+  t.after(() => w.app.stop());
+  const original = w.gladys.publishDiscoveredDevices.bind(w.gladys);
+  let refuse = true;
+  w.gladys.publishDiscoveredDevices = async (devices) => {
+    if (refuse) {
+      refuse = false;
+      throw new Error('HTTP 500');
+    }
+    return original(devices);
+  };
+  await w.gladys.connect();
+  await w.app.ready;
+  const pings = w.server.calls('/api/v1/ping');
+  t.mock.timers.tick(60_000);
+  for (let i = 0; i < 20; i += 1) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  assert.ok(w.server.calls('/api/v1/ping') > pings, 'the timer reads the server');
 });
 
 test('ask: the answer goes to the scene, and to the "last answer" feature', async (t) => {

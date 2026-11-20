@@ -50,6 +50,9 @@ export const MAX_ANSWER_CHARACTERS = 10_000;
 export const DEFAULT_ANSWER_CHARACTERS = 1000;
 export const MIN_ANSWER_CHARACTERS = 50;
 
+// What Gladys grants the scene action (120 s), minus a margin for the answer.
+export const ACTION_BUDGET_MS = 115_000;
+
 // A conversation name typed in a scene becomes the Flowise sessionId.
 export const MAX_SESSION_LENGTH = 100;
 
@@ -64,12 +67,13 @@ export function truncate(text, max) {
   if (text.length <= max) {
     return { text, truncated: false };
   }
-  const room = text.slice(0, max - 1);
+  // Room for the " …" mark of a cut at the end of a sentence.
+  const room = text.slice(0, max - 2);
   const sentence = Math.max(
     ...['. ', '! ', '? ', '.\n', '!\n', '?\n', '\n'].map((end) => room.lastIndexOf(end)),
   );
   if (sentence >= max * 0.66) {
-    return { text: `${room.slice(0, sentence + 1).trimEnd()} …`.slice(0, max), truncated: true };
+    return { text: `${room.slice(0, sentence + 1).trimEnd()} …`, truncated: true };
   }
   const word = room.lastIndexOf(' ');
   const cut = word >= max * 0.66 ? room.slice(0, word) : room;
@@ -131,6 +135,7 @@ export class FlowiseHub {
       online: null,
       version: null,
       flows: null,
+      keyError: null,
       error: null,
       failures: 0,
       down: false,
@@ -192,9 +197,13 @@ export class FlowiseHub {
       this.state = this.emptyState();
       clearTimeout(this.retryTimer);
     }
-    await this.publishDevices();
-    await this.refresh();
-    this.schedulePoll();
+    try {
+      await this.publishDevices();
+      await this.refresh();
+    } finally {
+      // A refused publication must not stop the readings for good.
+      this.schedulePoll();
+    }
   }
 
   async stop() {
@@ -293,14 +302,11 @@ export class FlowiseHub {
     let widgetChanged;
     try {
       await client.ping();
-      const [version, flows] = await Promise.all([
-        client.version(),
-        this.withKey ? client.chatflows() : Promise.resolve(null),
-      ]);
+      const [version, list] = await Promise.all([client.version(), this.readFlows(client)]);
       if (client !== this.client) {
         return; // the address changed while reading
       }
-      widgetChanged = await this.applySuccess({ version, flows });
+      widgetChanged = await this.applySuccess({ version, ...list });
     } catch (err) {
       if (!err.kind) {
         throw err;
@@ -313,14 +319,37 @@ export class FlowiseHub {
     await this.afterChanges(widgetChanged);
   }
 
-  async applySuccess({ version, flows }) {
+  /**
+   * The flows, with a key. A key Flowise refuses on the list (wrong, or
+   * without the "view" permission) does not make the server look down: it is
+   * reported apart (`keyError`), the questions can still reach open flows.
+   */
+  async readFlows(client) {
+    if (!this.withKey) {
+      return { flows: null, keyError: null };
+    }
+    try {
+      return { flows: await client.chatflows(), keyError: null };
+    } catch (err) {
+      if (DOWN_KINDS.has(err.kind) || !err.kind) {
+        throw err;
+      }
+      return { flows: null, keyError: err };
+    }
+  }
+
+  async applySuccess({ version, flows, keyError }) {
     const state = this.state;
     const names = (list) => (list ?? []).map((flow) => `${flow.id} ${flow.name}`).join('\n');
     const widgetChanged =
       state.online !== true ||
       state.error !== null ||
       state.version !== version ||
-      names(state.flows) !== names(flows);
+      names(state.flows) !== names(flows) ||
+      state.keyError?.kind !== keyError?.kind;
+    if (keyError && state.keyError?.kind !== keyError.kind) {
+      logger.warn(`Flowise: ${keyError.message}`);
+    }
     if (state.down) {
       const downMinutes = Math.round((this.now() - state.downSince) / 60_000);
       logger.info(`Flowise answers again after ${downMinutes} min`);
@@ -336,6 +365,7 @@ export class FlowiseHub {
       online: true,
       version,
       flows,
+      keyError: keyError ? { kind: keyError.kind, message: keyError.message } : null,
       error: null,
       failures: 0,
       down: false,
@@ -364,7 +394,7 @@ export class FlowiseHub {
       return wasError !== err.kind;
     }
     state.failures += 1;
-    if (state.failures === 1) {
+    if (state.failures === 1 && !state.down) {
       state.downSince = this.now();
       this.later('retryTimer', this.timings.retryMs, () => this.refresh());
     }
@@ -457,8 +487,13 @@ export class FlowiseHub {
         message: this.config.urlTyped ? CONNECTION_TEXT.invalidUrl : CONNECTION_TEXT.noUrl,
       };
     }
-    if (this.state.error) {
-      return { connected: false, message: ERROR_TEXT[this.state.error.kind] };
+    const { error, keyError } = this.state;
+    // A single silent reading is a blip: red only once the server is down.
+    if (error && (!DOWN_KINDS.has(error.kind) || this.state.down)) {
+      return { connected: false, message: ERROR_TEXT[error.kind] };
+    }
+    if (keyError) {
+      return { connected: false, message: ERROR_TEXT[keyError.kind] };
     }
     return { connected: true };
   }
@@ -551,6 +586,7 @@ export class FlowiseHub {
     if (!question) {
       throw new ActionFailure(ACTION_TEXT.noQuestion);
     }
+    const asked = this.now();
     const flow = await this.flowOf(typedFlow);
     const label = flow.name ?? flow.id;
     const sessionId = parseSession(session);
@@ -562,7 +598,11 @@ export class FlowiseHub {
         flowId: flow.id,
         question,
         sessionId: sessionId || undefined,
-        timeoutMs: this.config.timeoutMs,
+        // Gladys grants the action 120 s: a name looked up first shortens the wait.
+        timeoutMs: Math.max(
+          5_000,
+          Math.min(this.config.timeoutMs, ACTION_BUDGET_MS - (this.now() - asked)),
+        ),
       });
     } catch (err) {
       logger.warn(`Question to the flow ${label} failed: ${err.message}`);
@@ -601,6 +641,13 @@ export class FlowiseHub {
       throw new ActionFailure(
         everyLanguage((language) =>
           labelled('Flowise', pick(ERROR_TEXT[this.state.error.kind], language), language),
+        ),
+      );
+    }
+    if (this.state.keyError) {
+      throw new ActionFailure(
+        everyLanguage((language) =>
+          labelled('Flowise', pick(ERROR_TEXT[this.state.keyError.kind], language), language),
         ),
       );
     }

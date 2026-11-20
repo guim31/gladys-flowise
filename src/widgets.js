@@ -78,7 +78,7 @@ function serverRow(state, language) {
         state.version ? `${t(TEXT.online, language)} · ${state.version}` : t(TEXT.online, language),
         40,
       ),
-      color: state.error ? WIDGET_COLORS.WARNING : WIDGET_COLORS.SUCCESS,
+      color: state.error || state.keyError ? WIDGET_COLORS.WARNING : WIDGET_COLORS.SUCCESS,
     };
   }
   return {
