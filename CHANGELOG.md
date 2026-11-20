@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-20
+
 ### Added
 
 - Scene action _Ask Flowise_: a question with scene variables sent to a
@@ -24,4 +26,5 @@ the notes of the version's GitHub Release.
 - _Test the connection_ lists the flows.
 - English, French, German and Spanish everywhere.
 
-[Unreleased]: https://github.com/guim31/gladys-flowise/commits/main
+[Unreleased]: https://github.com/guim31/gladys-flowise/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/guim31/gladys-flowise/releases/tag/v1.0.0
